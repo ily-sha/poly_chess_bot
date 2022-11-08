@@ -8,14 +8,11 @@ from message import Message
 import _
 import openpyxl
 import json
-import schedule
 from admin import *
 from params import Params
 from String import *
-# choose suranme путается метод и переменная
 
-"""При перезвпуске сервера всегда будет лист 2022-2023, надо менять лист при перезапуске"""
-"""Правила в присылаемом файле без формул и переносов, при перезапуске сервера не забыть лист на дейтсвущий,  фамилии бех проблеоов справа слева"""
+"""При перезапуске сервера всегда будет лист 2022-2023"""
 TOKEN = _.token
 sheetname = "2022-2023"
 chat_id_column = "A"
@@ -30,7 +27,7 @@ process = {}
 
 def get_updates(offset=0):
     result = requests.get(f'{URL + TOKEN}/getUpdates?offset={offset}').json()
-    return result['result']
+    if "result" in result: return result['result']
 
 
 def send_message(chat_id, params):
@@ -38,7 +35,7 @@ def send_message(chat_id, params):
 
 
 def is_person_near(location):
-    center = 60.005143, 30.372276
+    center = 59.965128, 30.398474
     center_point = [{latitude: center[0], longitude: center[1]}]
     test_point = [location]
     lat1 = center_point[0][latitude]
@@ -52,18 +49,6 @@ def is_person_near(location):
     c = 2 * asin(sqrt(a))
     r = 6371
     return c * r <= radius
-
-
-def lesson_started():
-    book = openpyxl.load_workbook(filename)
-    chat_ids = [i.value for i in book[sheetname][chat_id_column][1:]]
-    count = 1
-    for i in chat_ids:
-        if i != "" and i is not None:
-            if count % 15 == 0:
-                time.sleep(2)
-            send_message(i, Params(text=lesson_started_command))
-            count += 1
 
 
 def mark_user(chat_id, surname=None, current_data=None):
@@ -160,8 +145,8 @@ def start(message):
     chat_id = message.get_chat_id()
     if message.is_text_message():
         if start_command == message.get_text():
-            send_message(chat_id,  Params(text=choose_course,
-                                          reply_markup=create_reply_markup([[first_course, second_course]])))
+            send_message(chat_id, Params(text=choose_course,
+                                         reply_markup=create_reply_markup([[first_course, second_course]])))
         elif course in message.get_text():
             choose_surname(chat_id, message.get_text())
         else:
@@ -174,6 +159,8 @@ def start(message):
                     book.save(filename)
                     reply_markup = json.dumps({remove_keyboard: True})
                     send_message(chat_id, Params(text=authorization_success, reply_markup=reply_markup))
+                    send_message(chat_id, Params(follow_instructions))
+                    send_media(chat_id, requirements_of_location_message, "photo")
                 else:
                     send_message(chat_id, Params(text=surname_used_by_other))
             else:
@@ -181,48 +168,43 @@ def start(message):
 
 
 def run():
-    # schedule.every().saturday.at("18:00").do(lesson_started())
+    update_id = get_updates()[-1]["update_id"]
     while True:
-        schedule.run_pending()
         try:
-            update_id = get_updates()[-1]["update_id"]
-            while True:
-                messages = get_updates(update_id)
-                for message_js in messages:
-                    if update_id < message_js["update_id"]:
-                        update_id = message_js["update_id"]
-                        message = Message(message_js)
-                        if message.get_message_type() == "message":
-                            chat_id = message.get_chat_id()
-                            if message.get_username() in admins:
-                                admin_method(message)
-                            elif not is_user_authorization(chat_id):
-                                start(message)
-                            elif message.is_location_message():
-                                if 18 <= time.localtime().tm_hour <= 23:
-                                    if message.is_live_location():
-                                        if is_person_near(message.get_location()):
-                                            if mark_user(chat_id):
-                                                send_message(chat_id, Params(text=correct_input))
-                                            else:
-                                                reply_markup = json.dumps({remove_keyboard: True})
-                                                send_message(chat_id, Params(text=no_lesson_today,
-                                                                             reply_markup=reply_markup))
-                                        else:
-                                            send_message(chat_id, Params(
-                                                text=f"Для отметки о посещении необходимо быть в радиусе "
-                                                     f"{int(radius * 1000)} метров"))
-                                    else:
-                                        send_message(chat_id, Params(text=notification_of_location))
-                                        send_media(chat_id, requirements_of_location_message, "photo")
-                                else:
-                                    send_message(chat_id, Params(text=notification_of_time))
-                            else:
-                                send_message(chat_id, Params(text="Вы вошли под фамилией " +
-                                                                      get_surname_by_chat_id(chat_id)))
-        except Exception as e:
+            messages = get_updates(update_id)
             time.sleep(1)
+            for message_js in messages:
+                if update_id < message_js["update_id"]:
+                    update_id = message_js["update_id"]
+                    message = Message(message_js)
+
+                    if message.get_message_type() == "message":
+                        chat_id = message.get_chat_id()
+                        if message.get_username() in admins:
+                            admin_method(message)
+                        elif not is_user_authorization(chat_id):
+                            start(message)
+                        elif message.is_location_message():
+                            if message.is_live_location():
+                                if is_person_near(message.get_location()):
+                                    if mark_user(chat_id):
+                                        send_message(chat_id, Params(text=correct_input))
+                                    else:
+                                        reply_markup = json.dumps({remove_keyboard: True})
+                                        send_message(chat_id, Params(text=no_lesson_today,
+                                                                     reply_markup=reply_markup))
+                                else:
+                                    send_message(chat_id, Params(
+                                        text=f"Для отметки о посещении необходимо быть в радиусе "
+                                             f"{int(radius * 1000)} метров"))
+                            else:
+                                send_message(chat_id, Params(text=notification_of_location))
+                                send_media(chat_id, requirements_of_location_message, "photo")
+                        else:
+                            send_message(chat_id, Params(text="Вы вошли под фамилией " + get_surname_by_chat_id(chat_id)))
+        except Exception as e:
             print(e)
+            time.sleep(1)
 
 
 if __name__ == '__main__':

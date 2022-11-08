@@ -1,15 +1,13 @@
-update_id = ''
-
-
 class Message:
     def __init__(self, message_json):
-        print(message_json)
         self.__message_json = message_json
         if "message" in message_json:
             self.__message_type = "message"
             self.__message = message_json["message"]
             self.__chat_id = self.__message["from"]["id"]
-            self.__username = self.__message["from"]["username"]
+            self.__username = None
+            if "username" in self.__message["from"]:
+                self.__username = self.__message["from"]["username"]
             self.__text_message = False
             self.__location_message = False
             self.__has_venue_param = False
