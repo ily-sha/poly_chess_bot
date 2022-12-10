@@ -48,5 +48,7 @@ requirements_of_sheet = "Отправьте файл .xlsx, который вк�
 
 # file name
 filename = "attendance.xlsx"
+archive = "archive.txt"
+one_hour = 3600
 requirements_of_sheet_file = "requirements_of_sheet.png"
 requirements_of_location_message = "requirement_of_location.png"
