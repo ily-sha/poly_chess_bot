@@ -16,6 +16,7 @@ choose_date = "Выберите дату"
 choose_surname_command = "Выберите фамилию"
 
 # user
+str_get_attendance_user = "/attendance"
 authorization_success = "Вы успешно вошли"
 follow_instructions = "Следуйте следующим инструкциям, чтобы поделиться текущей локацией"
 surname_used_by_other = "Под вашей фамилией уже вошли"
@@ -28,7 +29,7 @@ no_lesson_today = "Сегодня занятий нет"
 
 # admin command
 administrator_permission = "Вы наделены правами администратора"
-get_attendance = "Получить таблицу посещаемости"
+str_get_attendance_adm = "Получить таблицу посещаемости"
 mark_student_command = "Отметить посещение ученика"
 add_new_student = "Добавить нового ученика"
 add_new_semester_command = "Создать новый семестр"
@@ -47,8 +48,10 @@ requirements_of_sheet = "Отправьте файл .xlsx, который вк�
                         "3) Поле В1 - фамилия\n4) Поле С1 - достижения"
 
 # file name
-filename = "attendance.xlsx"
-archive = "archive.txt"
+
+sad_pic = "pic/sad_cat.jpg"
+filename = "logs/attendance.xlsx"
+archive = "logs/archive.txt"
 one_hour = 3600
-requirements_of_sheet_file = "requirements_of_sheet.png"
-requirements_of_location_message = "requirement_of_location.png"
+requirements_of_sheet_file = "pic/requirements_of_sheet.png"
+requirements_of_location_message = "pic/requirement_of_location.png"

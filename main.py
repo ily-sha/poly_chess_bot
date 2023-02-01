@@ -21,7 +21,8 @@ course_column = "B"
 surname_column = "C"
 advantage_column = "D"
 URL = 'https://api.telegram.org/bot'
-radius = 0.09
+radius = 0.3
+#
 center = 59.965128, 30.398474
 process = {}
 
@@ -48,6 +49,7 @@ def get_person_remoteness(location):
         a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
         c = 2 * asin(sqrt(a))
         r = 6371
+        print(c * r)
         return c * r
 
 
@@ -93,6 +95,51 @@ def chunked_list(list):
     if len(list) % 3 == 2:
         result.append([list[-2], list[-1]])
     return result
+
+
+def write_logs(message):
+    date = datetime.datetime.utcfromtimestamp(message.get_date()) + datetime.timedelta(hours=3)
+    file = open(archive, "a+")
+    try:
+        file.write(f"chatId - {message.get_chat_id()}; username - {message.get_username()}; "
+                   f"date {date}; text - {message.get_text()}; location - "
+                   f"{message.is_live_location()}; radius - {get_person_remoteness(message.get_location())}" + "\n")
+    finally:
+        file.close()
+
+
+def get_attendance(chat_id):
+    book = openpyxl.open(filename)[sheetname]
+    all_chat_ids = [i.value for i in book[chat_id_column][1:]]
+    chat_id_index = all_chat_ids.index(chat_id) + 2
+    attendances_date = []
+    for i in book.iter_rows():
+        for title in i:
+            if isinstance(title.value, datetime.datetime):
+                if book[title.column_letter + str(chat_id_index)].value == "+":
+                    attendances_date.append(title.value)
+        break
+    return attendances_date
+
+
+def mark_user(chat_id, surname=None, current_data=None):
+    today_data = datetime.date.today()
+    book = openpyxl.load_workbook(filename)
+    sheet = book[sheetname]
+    res_row = 0
+    for row in sheet.iter_rows():
+        if row[0].value == chat_id or row[2].value == surname:
+            res_row = str(row[0].row)
+            break
+    for row in sheet.iter_rows():
+        for title in row:
+            if isinstance(title.value, datetime.datetime):
+                data = datetime.date(title.value.year, title.value.month, title.value.day)
+                if (data == today_data and current_data is None) or data == current_data and res_row != "0":
+                    sheet[title.column_letter + res_row].value = "+"
+                    book.save(filename)
+                    return True
+        return False
 
 
 def find_next_column(n):
@@ -192,15 +239,7 @@ def run():
                     if message.get_message_type() == "message":
                         chat_id = message.get_chat_id()
                         schedule.every(62).minutes.do(check_user, chat_id=chat_id).tag(chat_id)
-                        date = datetime.datetime.utcfromtimestamp(message.get_date()) + datetime.timedelta(hours=3)
-                        file = open(archive, "a+")
-                        try:
-                            file.write(f"chatId - {message.get_chat_id()}; username - {message.get_username()}; "
-                                       f"date {date}; text - {message.get_text()}; location - "
-                                       f"{message.is_live_location()}; radius - {get_person_remoteness(message.get_location())}" + "\n")
-                        finally:
-                            file.close()
-
+                        write_logs(message)
                         if message.get_username() in admins:
                             admin_method(message)
                         elif not is_user_authorization(chat_id):
@@ -231,7 +270,8 @@ def run():
                     elif message.get_message_type() == "edited_message":
                         chat_id = message.get_chat_id()
                         if chat_id in process and message.is_live_location():
-                            date = datetime.datetime.utcfromtimestamp(message.get_edit_date()) + datetime.timedelta(hours=3)
+                            date = datetime.datetime.utcfromtimestamp(message.get_edit_date()) + datetime.timedelta(
+                                hours=3)
                             process[chat_id].append([date, get_person_remoteness(message.get_location())])
         except Exception as e:
             print(e)
