@@ -7,7 +7,7 @@ import datetime
 import io
 from params import Params
 from String import *
-admin_tools = [[get_attendance], [mark_student_command], [add_new_student, add_lesson_date],
+admin_tools = [[str_get_attendance_adm], [mark_student_command], [add_new_student, add_lesson_date],
                [add_new_semester_command, change_list]]
 admins = ["peterthegreat", "echecs95"]
 process_admin = {}
@@ -48,7 +48,7 @@ def add_new_person_params(chat_id, text):
                 sheet[advantage_column + str(new_row)] = person.get_advantage()
             book.save(filename)
             send_message(chat_id,
-                         Params(text=f"Ученик\ца {person.get_surname()} {person.get_course()}-ого курса добавлен/a",
+                         Params(text=f"Ученик/ца {person.get_surname()} {person.get_course()}-ого курса добавлен/a",
                                 reply_markup=create_reply_markup(admin_tools)))
             process_admin.pop(chat_id)
 
@@ -99,7 +99,7 @@ def admin_method(message):
             main.sheetname = text
             send_message(chat_id, Params(text=f"Актуальный лист - {text}",
                                          reply_markup=create_reply_markup(admin_tools)))
-        elif text == get_attendance:
+        elif text == str_get_attendance_adm:
             send_media(chat_id, filename, "document")
         elif text == add_lesson_date:
             send_message(chat_id, Params(text=write_correct_date))

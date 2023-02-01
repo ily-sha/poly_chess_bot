@@ -238,7 +238,6 @@ def run():
 
                     if message.get_message_type() == "message":
                         chat_id = message.get_chat_id()
-                        schedule.every(62).minutes.do(check_user, chat_id=chat_id).tag(chat_id)
                         write_logs(message)
                         if message.get_username() in admins:
                             admin_method(message)
@@ -249,7 +248,7 @@ def run():
                                 if get_person_remoteness(message.get_location()) <= radius:
                                     process[chat_id] = []
                                     if mark_user(chat_id):
-                                        schedule.every(62).seconds.do(check_user, chat_id=chat_id).tag(chat_id)
+                                        schedule.every(62).minutes.do(check_user, chat_id=chat_id).tag(chat_id)
                                         send_message(chat_id, Params(text=correct_input))
                                     else:
                                         reply_markup = json.dumps({remove_keyboard: True})
@@ -270,8 +269,7 @@ def run():
                     elif message.get_message_type() == "edited_message":
                         chat_id = message.get_chat_id()
                         if chat_id in process and message.is_live_location():
-                            date = datetime.datetime.utcfromtimestamp(message.get_edit_date()) + datetime.timedelta(
-                                hours=3)
+                            date = datetime.datetime.utcfromtimestamp(message.get_edit_date()) + datetime.timedelta(hours=3)
                             process[chat_id].append([date, get_person_remoteness(message.get_location())])
         except Exception as e:
             print(e)
