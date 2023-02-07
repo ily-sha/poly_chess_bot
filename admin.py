@@ -25,6 +25,24 @@ def get_all_dates():
         return all_dates
 
 
+def add_new_day(chat_id, text):
+    try:
+        day, month, year = map(int, text.split("."))
+        book = openpyxl.load_workbook(filename)
+        sheet = book[main.sheetname]
+        for row in sheet.iter_rows():
+            for title in row:
+                if sheet[find_next_column(title.column_letter) + "1"].value is None:
+                    sheet[find_next_column(title.column_letter) + "1"].value = datetime.date(year, month, day)
+                    book.save(filename)
+                    send_message(chat_id, Params(added_success))
+                    process_admin.pop(chat_id)
+                    break
+            break
+    except Exception as e:
+        send_message(chat_id, Params(incorrect_date_format))
+
+
 def add_new_person_params(chat_id, text):
     person = process_admin[chat_id]
     if person.get_surname() is None:
@@ -87,6 +105,33 @@ def put_dates(main_sheet):
         next_column = find_next_column(main_sheet.max_column)
 
 
+def mark_person(chat_id, text):
+    mark_person_object = process_admin[chat_id]
+    if mark_person_object.get_course() is None:
+        mark_person_object.set_course(text)
+        choose_surname(chat_id, mark_person_object.get_course())
+    else:
+        if mark_person_object.get_surname() is None:
+            mark_person_object.set_surname(text)
+            today = f"{str(datetime.date.today().day)}-{str(datetime.date.today().month)}-{str(datetime.date.today().year)}"
+            all_dates = get_all_dates()
+            arr = chunked_list(all_dates)
+            if today in all_dates:
+                arr.insert(0, [today])
+            send_message(chat_id, Params(text=choose_date,
+                                         reply_markup=create_reply_markup(arr)))
+        else:
+            day, month, year = text.split("-")
+            if mark_user(0, surname=mark_person_object.get_surname(),
+                         current_data=datetime.date(int(year), int(month), int(day))):
+                send_message(chat_id,
+                             Params(text=student_marked, reply_markup=create_reply_markup(admin_tools)))
+            else:
+                send_message(chat_id, Params(text=student_unmarked,
+                                             reply_markup=create_reply_markup(admin_tools)))
+            process_admin.pop(chat_id)
+
+
 def admin_method(message):
     chat_id = message.get_chat_id()
     if message.is_text_message():
@@ -95,16 +140,13 @@ def admin_method(message):
             process_admin.clear()
             send_message(chat_id, Params(text=administrator_permission,
                                          reply_markup=create_reply_markup(admin_tools)))
-        elif text in openpyxl.load_workbook(filename).sheetnames:
-            main.sheetname = text
-            send_message(chat_id, Params(text=f"Актуальный лист - {text}",
-                                         reply_markup=create_reply_markup(admin_tools)))
         elif text == str_get_attendance_adm:
             send_media(chat_id, filename, "document")
         elif text == add_lesson_date:
             send_message(chat_id, Params(text=write_correct_date))
             process_admin[chat_id] = add_lesson_date
         elif text == mark_student_command:
+            process_admin[chat_id] = MarkPerson()
             send_message(chat_id, Params(text=choose_course,
                                          reply_markup=create_reply_markup([[first_course, second_course]])))
         elif text == add_new_semester_command:
@@ -112,51 +154,26 @@ def admin_method(message):
             send_media(chat_id, requirements_of_sheet_file, "photo")
         elif text == change_list:
             book = openpyxl.load_workbook(filename)
-
             send_message(chat_id, Params(text=choose_sheet,
                                          reply_markup=create_reply_markup(chunked_list(book.sheetnames))))
-        elif is_surname_exist(message.get_text()):
-            process_admin[chat_id] = [text, choose_date]
-            today = f"{str(datetime.date.today().day)}-{str(datetime.date.today().month)}-{str(datetime.date.today().year)}"
-            arr = chunked_list(get_all_dates())
-            arr.insert(0, [today])
-            send_message(chat_id, Params(text=choose_date,
-                                         reply_markup=create_reply_markup(arr)))
+            process_admin[chat_id] = change_list
         elif text == add_new_student:
             send_message(chat_id, Params(text=write_student_surname))
             process_admin[chat_id] = NewPerson()
-        elif chat_id in process_admin.keys() and isinstance(process_admin[chat_id], NewPerson):
-            add_new_person_params(chat_id, text)
-        elif course in text:
-            choose_surname(chat_id, text)
         elif chat_id in process_admin:
             if process_admin[chat_id] == add_lesson_date:
-                try:
-                    day, month, year = map(int, text.split("."))
-                    book = openpyxl.load_workbook(filename)
-                    sheet = book[main.sheetname]
-                    for row in sheet.iter_rows():
-                        for title in row:
-                            if sheet[find_next_column(title.column_letter) + "1"].value is None:
-                                sheet[find_next_column(title.column_letter) + "1"].value = datetime.date(year, month, day)
-                                book.save(filename)
-                                send_message(chat_id, Params(added_success))
-                                process_admin.pop(chat_id)
-                                break
-                        break
-                except Exception as e:
-                    send_message(chat_id, Params(incorrect_date_format))
-            elif len(process_admin[chat_id]) == 2 and process_admin[chat_id][1] == choose_date:
-                day, month, year = text.split("-")
-                if mark_user(0, surname=process_admin[chat_id][0], current_data=datetime.date(int(year), int(month), int(day))):
-                    send_message(chat_id,
-                                 Params(text=student_marked, reply_markup=create_reply_markup(admin_tools)))
-                else:
-                    send_message(chat_id, Params(text=student_unmarked,
-                                                 reply_markup=create_reply_markup(admin_tools)))
-                process_admin.pop(chat_id)
+                add_new_day(chat_id, text)
+            elif process_admin[chat_id] == change_list:
+                main.sheetname = text
+                send_message(chat_id, Params(text=f"Актуальный лист - {text}",
+                                             reply_markup=create_reply_markup(admin_tools)))
+            elif isinstance(process_admin[chat_id], MarkPerson):
+                mark_person(chat_id, message.get_text())
+            elif isinstance(process_admin[chat_id], NewPerson):
+                add_new_person_params(chat_id, text)
+
         else:
-            send_message(chat_id, Params(text=else_admin_command))
+            send_message(chat_id, Params(text=default_admin_command))
     elif message.is_document_message() and message.get_file_type() == "xlsx":
         try:
             main_book = openpyxl.load_workbook(filename)
@@ -198,3 +215,28 @@ class NewPerson:
 
     def set_advantage(self, advantage):
         self.advantage = advantage
+
+
+class MarkPerson:
+    def __init__(self):
+        self.surname = None
+        self.course = None
+        self.date = None
+
+    def get_surname(self):
+        return self.surname
+
+    def get_course(self):
+        return self.course
+
+    def get_date(self):
+        return self.date
+
+    def set_surname(self, surname):
+        self.surname = surname
+
+    def set_course(self, course):
+        self.course = course
+
+    def set_date(self, date):
+        self.date = date
