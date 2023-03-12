@@ -17,7 +17,7 @@ from params import Params
 from String import *
 import threading
 
-"""При перезапуске сервера всегда будет лист 2022-2023"""
+"""При перезапуске сервера всегда будет лист 2022 - 2023 (2)"""
 TOKEN = _.token
 sheetname = "2022 - 2023 (2)"
 chat_id_column = "A"
@@ -28,6 +28,7 @@ URL = 'https://api.telegram.org/bot'
 radius = 0.3
 lesson = pymorphy2.MorphAnalyzer().parse("занятие")[0]
 center = 59.965128, 30.398474
+
 process = {}
 
 
@@ -56,24 +57,24 @@ def get_person_remoteness(location):
         return c * r
 
 
-def mark_user(chat_id, surname=None, current_data=None):
-    today_data = datetime.date.today()
-    book = openpyxl.load_workbook(filename)
-    sheet = book[sheetname]
-    res_row = 0
-    for row in sheet.iter_rows():
-        if row[0].value == chat_id or row[2].value == surname:
-            res_row = str(row[0].row)
-            break
-    for row in sheet.iter_rows():
-        for title in row:
-            if isinstance(title.value, datetime.datetime):
-                data = datetime.date(title.value.year, title.value.month, title.value.day)
-                if (data == today_data and current_data is None) or data == current_data and res_row != "0":
-                    sheet[title.column_letter + res_row].value = "+"
-                    book.save(filename)
-                    return True
-        return False
+# def mark_user(chat_id, surname=None, current_data=None):
+#     today_data = datetime.date.today()
+#     book = openpyxl.load_workbook(filename)
+#     sheet = book[sheetname]
+#     res_row = 0
+#     for row in sheet.iter_rows():
+#         if row[0].value == chat_id or row[2].value == surname:
+#             res_row = str(row[0].row)
+#             break
+#     for row in sheet.iter_rows():
+#         for title in row:
+#             if isinstance(title.value, datetime.datetime):
+#                 data = datetime.date(title.value.year, title.value.month, title.value.day)
+#                 if (data == today_data and current_data is None) or data == current_data and res_row != "0":
+#                     sheet[title.column_letter + res_row].value = "+"
+#                     book.save(filename)
+#                     return True
+#         return False
 
 
 def choose_surname(chat_id, text):
@@ -230,33 +231,18 @@ def start(message):
                 send_message(chat_id, Params(text=surname_enter_incorrect))
 
 
-def check_user(chat_id):
-    if chat_id in process:
-        file = open("live_location.txt", "a+")
-        try:
-            file.write(f"{chat_id}: {str(process[chat_id])} \n")
-            schedule.clear(chat_id)
-        finally:
-            file.close()
-
-
-medical_certificate = {}
-NOTIFICATED = "NOTIFICATED"
-
-
-def get_medical_certificate():
-    book = openpyxl.load_workbook(filename)
-    chat_ids = [i.value for i in book[sheetname][chat_id_column]][1:]
-    for i in chat_ids:
-        send_message(i, Params(
-            text="Есть ли у тебя справка с группой здоровья? Если есть, то напиши группу здоровья, если нет, то напиши нет"))
-        medical_certificate[i] = NOTIFICATED
-        time.sleep(2)
+# def check_user(chat_id):
+#     if chat_id in process:
+#         file = open("live_location.txt", "a+")
+#         try:
+#             file.write(f"{chat_id}: {str(process[chat_id])} \n")
+#             schedule.clear(chat_id)
+#         finally:
+#             file.close()
 
 
 def run():
     update_id = get_updates()[-1]["update_id"]
-
     while True:
         schedule.run_pending()
         try:
@@ -266,6 +252,7 @@ def run():
                 if update_id < message_js["update_id"]:
                     update_id = message_js["update_id"]
                     message = Message(message_js)
+
                     if message.get_message_type() == "message":
                         chat_id = message.get_chat_id()
                         write_logs(message)
@@ -276,9 +263,9 @@ def run():
                         elif message.is_location_message():
                             if message.is_live_location():
                                 if get_person_remoteness(message.get_location()) <= radius:
-                                    process[chat_id] = []
+                                    # process[chat_id] = []
                                     if mark_user(chat_id):
-                                        schedule.every(62).minutes.do(check_user, chat_id=chat_id).tag(chat_id)
+                                        # schedule.every(62).minutes.do(check_user, chat_id=chat_id).tag(chat_id)
                                         send_message(chat_id, Params(text=correct_input))
                                     else:
                                         reply_markup = json.dumps({remove_keyboard: True})
@@ -297,29 +284,18 @@ def run():
                                 send_media(chat_id, archive, "document")
                             elif message.get_text() == "live" and chat_id == 5084780807:
                                 send_media(chat_id, "logs/live_location.txt", "document")
-                            elif message.get_text() == "справка" and chat_id == 5084780807:
-                                t1 = threading.Thread(target=get_medical_certificate)
-                                t1.start()
+
                             elif message.get_text() == str_get_attendance_user:
                                 get_attendance_for_user(chat_id)
-                            elif chat_id in medical_certificate and medical_certificate[chat_id] == NOTIFICATED:
-                                medical_certificate.pop(chat_id)
-                                book = openpyxl.load_workbook(filename)
-                                sheet = book[sheetname]
-                                all_chatids = [i.value for i in sheet[chat_id_column][1:]]
-                                chatId_index = all_chatids.index(chat_id)
-                                sheet["AB" + str(2 + chatId_index)] = message.get_text()
-                                book.save(filename)
-                                send_message(chat_id, Params(text="Спасибо!"))
                             else:
                                 send_message(chat_id, Params(
                                     text="Вы вошли под фамилией " + get_surname_by_chat_id(chat_id)))
-                    elif message.get_message_type() == "edited_message":
-                        chat_id = message.get_chat_id()
-                        if chat_id in process and message.is_live_location():
-                            date = datetime.datetime.utcfromtimestamp(message.get_edit_date()) + datetime.timedelta(
-                                hours=3)
-                            process[chat_id].append([date, get_person_remoteness(message.get_location())])
+                        # elif message.get_message_type() == "edited_message":
+                        #     chat_id = message.get_chat_id()
+                        #     if chat_id in process and message.is_live_location():
+                        #         date = datetime.datetime.utcfromtimestamp(message.get_edit_date()) + datetime.timedelta(
+                        #             hours=3)
+                        #         process[chat_id].append([date, get_person_remoteness(message.get_location())])
         except Exception as e:
             print(e)
             time.sleep(1)

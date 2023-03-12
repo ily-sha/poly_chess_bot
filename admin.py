@@ -9,7 +9,7 @@ from params import Params
 from String import *
 admin_tools = [[str_get_attendance_adm], [mark_student_command], [add_new_student, add_lesson_date],
                [add_new_semester_command, change_list]]
-admins = ["peterthegreat", "echecs95"]
+admins = ["peterthegreat", "pavelchess"]
 process_admin = {}
 
 
