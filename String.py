@@ -9,12 +9,17 @@ first_course = "1 курс"
 second_course = "2 курс"
 course = "курс"
 start_command = "/start"
+medical_group_command = "/medical_group"
+chess_name_command = "/chess_name"
 
 choose_course = "Выберите курс"
 choose_sheet = "Выберите лист"
 choose_date = "Выберите дату"
 choose_surname_command = "Выберите фамилию"
+choose_medical_group = "Выберите медицинскую группу"
 
+
+write_chess_name = "Напишите свой ник на lichess"
 # user
 str_get_attendance_user = "/attendance"
 authorization_success = "Вы успешно вошли"

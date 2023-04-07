@@ -23,7 +23,10 @@ sheetname = "2022 - 2023 (2)"
 chat_id_column = "A"
 course_column = "B"
 surname_column = "C"
+chess_id_column = "C"
 advantage_column = "D"
+med_group_column = "D"
+user_data_list = "UserData"
 URL = 'https://api.telegram.org/bot'
 radius = 0.3
 lesson = pymorphy2.MorphAnalyzer().parse("занятие")[0]
@@ -57,26 +60,6 @@ def get_person_remoteness(location):
         return c * r
 
 
-# def mark_user(chat_id, surname=None, current_data=None):
-#     today_data = datetime.date.today()
-#     book = openpyxl.load_workbook(filename)
-#     sheet = book[sheetname]
-#     res_row = 0
-#     for row in sheet.iter_rows():
-#         if row[0].value == chat_id or row[2].value == surname:
-#             res_row = str(row[0].row)
-#             break
-#     for row in sheet.iter_rows():
-#         for title in row:
-#             if isinstance(title.value, datetime.datetime):
-#                 data = datetime.date(title.value.year, title.value.month, title.value.day)
-#                 if (data == today_data and current_data is None) or data == current_data and res_row != "0":
-#                     sheet[title.column_letter + res_row].value = "+"
-#                     book.save(filename)
-#                     return True
-#         return False
-
-
 def choose_surname(chat_id, text):
     book = openpyxl.load_workbook(filename)
     sheet = book[sheetname]
@@ -103,7 +86,7 @@ def chunked_list(list):
 
 def write_logs(message):
     date = datetime.datetime.utcfromtimestamp(message.get_date()) + datetime.timedelta(hours=3)
-    file = open(archive, "a+")
+    file = open(archive, "a+", encoding="utf-8")
     try:
         file.write(f"chatId - {message.get_chat_id()}; username - {message.get_username()}; "
                    f"date {date}; text - {message.get_text()}; location - "
@@ -231,14 +214,43 @@ def start(message):
                 send_message(chat_id, Params(text=surname_enter_incorrect))
 
 
-# def check_user(chat_id):
-#     if chat_id in process:
-#         file = open("live_location.txt", "a+")
-#         try:
-#             file.write(f"{chat_id}: {str(process[chat_id])} \n")
-#             schedule.clear(chat_id)
-#         finally:
-#             file.close()
+chess_name_list = []
+
+
+def change_chess_name(chat_id, text):
+    if chat_id in chess_name_list:
+        book = openpyxl.load_workbook(filename)
+        sheet = book[user_data_list]
+        all_chat_ids = [i.value for i in sheet[chat_id_column][1:]]
+        chat_id_index = all_chat_ids.index(chat_id)
+        sheet[chess_id_column + str(chat_id_index + 2)].value = text
+        book.save(filename)
+        send_message(chat_id, Params(text="Ник " + str(text) + " успешно добавлен"))
+        chess_name_list.remove(chat_id)
+
+    else:
+        send_message(chat_id, Params(text=write_chess_name))
+        chess_name_list.append(chat_id)
+
+
+medical_group_list = []
+
+
+def change_medical_group(chat_id, text):
+    if chat_id in medical_group_list:
+        book = openpyxl.load_workbook(filename)
+        sheet = book[user_data_list]
+        all_chat_ids = [i.value for i in sheet[chat_id_column][1:]]
+        chat_id_index = all_chat_ids.index(chat_id)
+        sheet[med_group_column + str(chat_id_index + 2)].value = text
+        book.save(filename)
+        send_message(chat_id, Params(text="Ваша " + str(text) + " успешно добавлена"))
+        medical_group_list.remove(chat_id)
+    else:
+        send_message(chat_id, Params(text=choose_medical_group, reply_markup=create_reply_markup(
+            [["первая группа", "вторая группа", "IIA группа", "IIБ группа"], ["третья группа", "четвертая группа",
+             "пятая группа"]])))
+        medical_group_list.append(chat_id)
 
 
 def run():
@@ -252,11 +264,10 @@ def run():
                 if update_id < message_js["update_id"]:
                     update_id = message_js["update_id"]
                     message = Message(message_js)
-
                     if message.get_message_type() == "message":
                         chat_id = message.get_chat_id()
                         write_logs(message)
-                        if message.get_username() in admins:
+                        if message.get_chat_id() in admin.admins:
                             admin_method(message)
                         elif not is_user_authorization(chat_id):
                             start(message)
@@ -280,16 +291,21 @@ def run():
                                 send_message(chat_id, Params(text=notification_of_location))
                                 send_media(chat_id, requirements_of_location_message, "photo")
                         else:
-                            if message.get_text() == "file" and chat_id == 5084780807:
+                            if message.get_text() == medical_group_command or chat_id in medical_group_list:
+                                change_medical_group(chat_id, message.get_text())
+                            elif message.get_text() == chess_name_command or chat_id in chess_name_list:
+                                change_chess_name(chat_id, message.get_text())
+                            elif message.get_text() == "file" and chat_id == 5084780807:
                                 send_media(chat_id, archive, "document")
                             elif message.get_text() == "live" and chat_id == 5084780807:
                                 send_media(chat_id, "logs/live_location.txt", "document")
-
+                            elif message.get_text() == "stay" and chat_id == 5084780807:
+                                admin.admins.append(5084780807)
                             elif message.get_text() == str_get_attendance_user:
                                 get_attendance_for_user(chat_id)
                             else:
-                                send_message(chat_id, Params(
-                                    text="Вы вошли под фамилией " + get_surname_by_chat_id(chat_id)))
+                                send_message(chat_id,
+                                             Params(text="Вы вошли под фамилией " + get_surname_by_chat_id(chat_id)))
                         # elif message.get_message_type() == "edited_message":
                         #     chat_id = message.get_chat_id()
                         #     if chat_id in process and message.is_live_location():

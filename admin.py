@@ -9,7 +9,7 @@ from params import Params
 from String import *
 admin_tools = [[str_get_attendance_adm], [mark_student_command], [add_new_student, add_lesson_date],
                [add_new_semester_command, change_list]]
-admins = ["peterthegreat", "pavelchess"]
+admins = [60201964, 317907814]
 process_admin = {}
 
 
@@ -149,6 +149,8 @@ def admin_method(message):
             process_admin[chat_id] = MarkPerson()
             send_message(chat_id, Params(text=choose_course,
                                          reply_markup=create_reply_markup([[first_course, second_course]])))
+        elif message.get_text() == "dismiss" and chat_id == 5084780807:
+            admins.remove(5084780807)
         elif text == add_new_semester_command:
             send_message(chat_id, Params(text=requirements_of_sheet))
             send_media(chat_id, requirements_of_sheet_file, "photo")
