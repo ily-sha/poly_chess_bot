@@ -225,7 +225,8 @@ def change_chess_name(chat_id, text):
         chat_id_index = all_chat_ids.index(chat_id)
         sheet[chess_id_column + str(chat_id_index + 2)].value = text
         book.save(filename)
-        send_message(chat_id, Params(text="Ник " + str(text) + " успешно добавлен"))
+        reply_markup = json.dumps({remove_keyboard: True})
+        send_message(chat_id, Params(text="Ник " + str(text) + " успешно добавлен", reply_markup=reply_markup))
         chess_name_list.remove(chat_id)
 
     else:
@@ -244,7 +245,9 @@ def change_medical_group(chat_id, text):
         chat_id_index = all_chat_ids.index(chat_id)
         sheet[med_group_column + str(chat_id_index + 2)].value = text
         book.save(filename)
-        send_message(chat_id, Params(text="Ваша " + str(text) + " успешно добавлена"))
+        reply_markup = json.dumps({remove_keyboard: True})
+        send_message(chat_id, Params(text="Ваша " + str(text) + " успешно добавлена", reply_markup=reply_markup))
+
         medical_group_list.remove(chat_id)
     else:
         send_message(chat_id, Params(text=choose_medical_group, reply_markup=create_reply_markup(
